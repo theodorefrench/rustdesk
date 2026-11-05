@@ -1026,7 +1026,7 @@ fn fix_key_down_timeout(force: bool) {
     drop(key_down);
 
     for (record_key, time) in cloned.into_iter() {
-        if force || time.elapsed().as_millis() >= 360_000 {
+        if force || time.elapsed().as_millis() >= 30_000 {
             record_pressed_key(record_key, false);
             release_record_key(record_key);
         }
@@ -1374,42 +1374,58 @@ pub fn handle_mouse_simulation_(evt: &MouseEvent, conn: i32) {
                 };
             }
         }
-        MOUSE_TYPE_DOWN => match buttons {
-            MOUSE_BUTTON_LEFT => {
-                allow_err!(en.mouse_down(MouseButton::Left));
+        MOUSE_TYPE_DOWN => {
+            *LATEST_PEER_INPUT_CURSOR.lock().unwrap() = Input {
+                conn,
+                time: get_time(),
+                x: evt.x,
+                y: evt.y,
+            };
+            match buttons {
+                MOUSE_BUTTON_LEFT => {
+                    allow_err!(en.mouse_down_at(MouseButton::Left, evt.x, evt.y));
+                }
+                MOUSE_BUTTON_RIGHT => {
+                    allow_err!(en.mouse_down_at(MouseButton::Right, evt.x, evt.y));
+                }
+                MOUSE_BUTTON_WHEEL => {
+                    allow_err!(en.mouse_down_at(MouseButton::Middle, evt.x, evt.y));
+                }
+                MOUSE_BUTTON_BACK => {
+                    allow_err!(en.mouse_down_at(MouseButton::Back, evt.x, evt.y));
+                }
+                MOUSE_BUTTON_FORWARD => {
+                    allow_err!(en.mouse_down_at(MouseButton::Forward, evt.x, evt.y));
+                }
+                _ => {}
             }
-            MOUSE_BUTTON_RIGHT => {
-                allow_err!(en.mouse_down(MouseButton::Right));
+        }
+        MOUSE_TYPE_UP => {
+            *LATEST_PEER_INPUT_CURSOR.lock().unwrap() = Input {
+                conn,
+                time: get_time(),
+                x: evt.x,
+                y: evt.y,
+            };
+            match buttons {
+                MOUSE_BUTTON_LEFT => {
+                    en.mouse_up_at(MouseButton::Left, evt.x, evt.y);
+                }
+                MOUSE_BUTTON_RIGHT => {
+                    en.mouse_up_at(MouseButton::Right, evt.x, evt.y);
+                }
+                MOUSE_BUTTON_WHEEL => {
+                    en.mouse_up_at(MouseButton::Middle, evt.x, evt.y);
+                }
+                MOUSE_BUTTON_BACK => {
+                    en.mouse_up_at(MouseButton::Back, evt.x, evt.y);
+                }
+                MOUSE_BUTTON_FORWARD => {
+                    en.mouse_up_at(MouseButton::Forward, evt.x, evt.y);
+                }
+                _ => {}
             }
-            MOUSE_BUTTON_WHEEL => {
-                allow_err!(en.mouse_down(MouseButton::Middle));
-            }
-            MOUSE_BUTTON_BACK => {
-                allow_err!(en.mouse_down(MouseButton::Back));
-            }
-            MOUSE_BUTTON_FORWARD => {
-                allow_err!(en.mouse_down(MouseButton::Forward));
-            }
-            _ => {}
-        },
-        MOUSE_TYPE_UP => match buttons {
-            MOUSE_BUTTON_LEFT => {
-                en.mouse_up(MouseButton::Left);
-            }
-            MOUSE_BUTTON_RIGHT => {
-                en.mouse_up(MouseButton::Right);
-            }
-            MOUSE_BUTTON_WHEEL => {
-                en.mouse_up(MouseButton::Middle);
-            }
-            MOUSE_BUTTON_BACK => {
-                en.mouse_up(MouseButton::Back);
-            }
-            MOUSE_BUTTON_FORWARD => {
-                en.mouse_up(MouseButton::Forward);
-            }
-            _ => {}
-        },
+        }
         MOUSE_TYPE_WHEEL | MOUSE_TYPE_TRACKPAD => {
             #[allow(unused_mut)]
             let mut x = -evt.x;
@@ -1466,6 +1482,10 @@ pub fn handle_mouse_simulation_(evt: &MouseEvent, conn: i32) {
     #[cfg(not(target_os = "macos"))]
     for key in to_release {
         en.key_up(key.clone());
+    }
+    #[cfg(target_os = "macos")]
+    if evt_type == MOUSE_TYPE_UP || evt.modifiers.is_empty() {
+        en.reset_flag();
     }
 }
 
