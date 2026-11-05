@@ -187,6 +187,12 @@ pub trait MouseControllable {
     /// ```
     fn mouse_down(&mut self, button: MouseButton) -> ResultType;
 
+    /// Push down one of the mouse buttons at the specified position.
+    /// Default implementation delegates to [mouse_down].
+    fn mouse_down_at(&mut self, button: MouseButton, _x: i32, _y: i32) -> ResultType {
+        self.mouse_down(button)
+    }
+
     /// Lift up a pushed down mouse button
     ///
     /// Lift up a previously pushed down button (by invoking
@@ -205,6 +211,12 @@ pub trait MouseControllable {
     /// enigo.mouse_up(MouseButton::Right);
     /// ```
     fn mouse_up(&mut self, button: MouseButton);
+
+    /// Lift up a pushed down mouse button at the specified position.
+    /// Default implementation delegates to [mouse_up].
+    fn mouse_up_at(&mut self, button: MouseButton, _x: i32, _y: i32) {
+        self.mouse_up(button);
+    }
 
     /// Click a mouse button
     ///

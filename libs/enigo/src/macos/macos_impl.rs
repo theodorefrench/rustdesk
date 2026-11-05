@@ -76,6 +76,8 @@ extern "C" {
     ) -> Boolean;
 
     fn CGEventPost(tapLocation: CGEventTapLocation, event: *mut MyCGEvent);
+    fn CGEventCreate(r: *const c_void) -> *const c_void;
+    fn CGEventGetLocation(e: *const c_void) -> CGPoint;
     // Actually return CFDataRef which is const here, but for coding convenience, return *mut c_void
     fn TISGetInputSourceProperty(source: TISInputSourceRef, property: *const c_void)
         -> *mut c_void;
@@ -111,6 +113,8 @@ pub struct Enigo {
     event_source: Option<CGEventSource>,
     double_click_interval: u32,
     last_click_time: Option<std::time::Instant>,
+    last_click_x: i32,
+    last_click_y: i32,
     multiple_click: i64,
     ignore_flags: bool,
     flags: CGEventFlags,
@@ -192,6 +196,8 @@ impl Default for Enigo {
             double_click_interval,
             multiple_click: 1,
             last_click_time: None,
+            last_click_x: 0,
+            last_click_y: 0,
             ignore_flags: false,
             flags: CGEventFlags::CGEventFlagNull,
             char_to_vkey_map: Default::default(),
@@ -262,16 +268,24 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_down(&mut self, button: MouseButton) -> crate::ResultType {
+        let (current_x, current_y) = Self::mouse_location();
+        self.mouse_down_at(button, current_x, current_y)
+    }
+
+    fn mouse_down_at(&mut self, button: MouseButton, x: i32, y: i32) -> crate::ResultType {
         let now = std::time::Instant::now();
+        let dist_sq = (x as i64 - self.last_click_x as i64).pow(2)
+            + (y as i64 - self.last_click_y as i64).pow(2);
         if let Some(t) = self.last_click_time {
-            if t.elapsed().as_millis() as u32 <= self.double_click_interval {
+            if t.elapsed().as_millis() as u32 <= self.double_click_interval && dist_sq <= 25 {
                 self.multiple_click += 1;
             } else {
                 self.multiple_click = 1;
             }
         }
         self.last_click_time = Some(now);
-        let (current_x, current_y) = Self::mouse_location();
+        self.last_click_x = x;
+        self.last_click_y = y;
         let (button, event_type, btn_value) = match button {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown, None),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown, None),
@@ -291,7 +305,7 @@ impl MouseControllable for Enigo {
                 return Ok(());
             }
         };
-        let dest = CGPoint::new(current_x as f64, current_y as f64);
+        let dest = CGPoint::new(x as f64, y as f64);
         if let Some(src) = self.event_source.as_ref() {
             if let Ok(event) = CGEvent::new_mouse_event(src.clone(), event_type, dest, button) {
                 if self.multiple_click > 1 {
@@ -311,6 +325,10 @@ impl MouseControllable for Enigo {
 
     fn mouse_up(&mut self, button: MouseButton) {
         let (current_x, current_y) = Self::mouse_location();
+        self.mouse_up_at(button, current_x, current_y);
+    }
+
+    fn mouse_up_at(&mut self, button: MouseButton, x: i32, y: i32) {
         let (button, event_type, btn_value) = match button {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp, None),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp, None),
@@ -330,7 +348,7 @@ impl MouseControllable for Enigo {
                 return;
             }
         };
-        let dest = CGPoint::new(current_x as f64, current_y as f64);
+        let dest = CGPoint::new(x as f64, y as f64);
         if let Some(src) = self.event_source.as_ref() {
             if let Ok(event) = CGEvent::new_mouse_event(src.clone(), event_type, dest, button) {
                 if self.multiple_click > 1 {
@@ -529,7 +547,7 @@ impl KeyboardControllable for Enigo {
 
     fn get_key_state(&mut self, key: Key) -> bool {
         let keycode = self.key_to_keycode(key);
-        unsafe { CGEventSourceKeyState(1, keycode) }
+        unsafe { CGEventSourceKeyState(0, keycode) }
     }
 }
 
@@ -600,8 +618,16 @@ impl Enigo {
         }
     }
 
-    /// The mouse coordinates in points, only works on the main display
+    /// The mouse coordinates in points
     pub fn mouse_location() -> (i32, i32) {
+        unsafe {
+            let e = CGEventCreate(null_mut());
+            if !e.is_null() {
+                let point = CGEventGetLocation(e);
+                CFRelease(e);
+                return (point.x as i32, point.y as i32);
+            }
+        }
         let (x, y_inv) = Self::mouse_location_raw_coords();
         let (_, display_height) = Self::main_display_size();
         (x, (display_height as i32) - y_inv)

@@ -2149,7 +2149,11 @@ class InputModel {
     double y = max(0.0, offset.dy);
     // Cursor ownership may change between a forwarded down and its up.
     if (_checkPeerControlProtected(x, y) && !isMatchingMouseUp) {
-      return null;
+      if (evt['type'] == _kMouseEventDown) {
+        parent.target?.cursorModel.gotMouseControl = true;
+      } else {
+        return null;
+      }
     }
 
     var type = kMouseEventTypeDefault;

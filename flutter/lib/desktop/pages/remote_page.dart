@@ -501,6 +501,7 @@ class _RemotePageState extends State<RemotePage>
       _rawKeyFocusNode.unfocus();
     }
     stateGlobal.isFocused.value = false;
+    _ffi.inputModel.enterOrLeave(false);
     _syncMacOSKeyboardGrab();
 
     // When window loses focus, temporarily release relative mouse mode constraints
