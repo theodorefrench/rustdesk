@@ -1375,53 +1375,43 @@ pub fn handle_mouse_simulation_(evt: &MouseEvent, conn: i32) {
             }
         }
         MOUSE_TYPE_DOWN => {
-            *LATEST_PEER_INPUT_CURSOR.lock().unwrap() = Input {
-                conn,
-                time: get_time(),
-                x: evt.x,
-                y: evt.y,
-            };
+            update_latest_input_cursor_time(conn);
             match buttons {
                 MOUSE_BUTTON_LEFT => {
-                    allow_err!(en.mouse_down_at(MouseButton::Left, evt.x, evt.y));
+                    allow_err!(en.mouse_down(MouseButton::Left));
                 }
                 MOUSE_BUTTON_RIGHT => {
-                    allow_err!(en.mouse_down_at(MouseButton::Right, evt.x, evt.y));
+                    allow_err!(en.mouse_down(MouseButton::Right));
                 }
                 MOUSE_BUTTON_WHEEL => {
-                    allow_err!(en.mouse_down_at(MouseButton::Middle, evt.x, evt.y));
+                    allow_err!(en.mouse_down(MouseButton::Middle));
                 }
                 MOUSE_BUTTON_BACK => {
-                    allow_err!(en.mouse_down_at(MouseButton::Back, evt.x, evt.y));
+                    allow_err!(en.mouse_down(MouseButton::Back));
                 }
                 MOUSE_BUTTON_FORWARD => {
-                    allow_err!(en.mouse_down_at(MouseButton::Forward, evt.x, evt.y));
+                    allow_err!(en.mouse_down(MouseButton::Forward));
                 }
                 _ => {}
             }
         }
         MOUSE_TYPE_UP => {
-            *LATEST_PEER_INPUT_CURSOR.lock().unwrap() = Input {
-                conn,
-                time: get_time(),
-                x: evt.x,
-                y: evt.y,
-            };
+            update_latest_input_cursor_time(conn);
             match buttons {
                 MOUSE_BUTTON_LEFT => {
-                    en.mouse_up_at(MouseButton::Left, evt.x, evt.y);
+                    en.mouse_up(MouseButton::Left);
                 }
                 MOUSE_BUTTON_RIGHT => {
-                    en.mouse_up_at(MouseButton::Right, evt.x, evt.y);
+                    en.mouse_up(MouseButton::Right);
                 }
                 MOUSE_BUTTON_WHEEL => {
-                    en.mouse_up_at(MouseButton::Middle, evt.x, evt.y);
+                    en.mouse_up(MouseButton::Middle);
                 }
                 MOUSE_BUTTON_BACK => {
-                    en.mouse_up_at(MouseButton::Back, evt.x, evt.y);
+                    en.mouse_up(MouseButton::Back);
                 }
                 MOUSE_BUTTON_FORWARD => {
-                    en.mouse_up_at(MouseButton::Forward, evt.x, evt.y);
+                    en.mouse_up(MouseButton::Forward);
                 }
                 _ => {}
             }
