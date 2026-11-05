@@ -51,7 +51,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install nasm yasm ninja create-dmg
+          brew install nasm yasm ninja create-dmg gnu-sed
+          echo "$(brew --prefix gnu-sed)/libexec/gnubin" >> "$GITHUB_PATH"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
@@ -65,6 +66,15 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.FLUTTER_MACOS_ARM_VERSION }}
           cache: true
+
+      - name: Keep CocoaPods for Flutter 3.44 (arm64)
+        run: flutter config --no-enable-swift-package-manager
+
+      - name: Workaround for flutter issue
+        shell: bash
+        run: |
+          cd "$(dirname "$(which flutter)")"
+          sed -i -e 's/_setFramesEnabledState(false);/\/\/_setFramesEnabledState(false);/g' ../packages/flutter/lib/src/scheduler/binding.dart
 
       - name: Patch RustDesk sources for Flutter 3.44
         run: bash .github/patches/apply_flutter_3.44_source_patches.sh
